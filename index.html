@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>IFRS 會計自動化 Dynamic 系統 v3.3</title>
+<style>
+  body {
+    margin: 0;
+    background: #f4f7f9;
+    font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+.control-panel {
+    margin: 20px 0 10px 0;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 1200px;
+  }
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #4A90E2;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+.btn:hover { background: #357ABD; }
+.btn:disabled { background: #BDC3C7; cursor: not-allowed; }
+.btn-success { background: #1ABC9C; }
+.btn-success:hover { background: #16A085; }
+.btn-danger { background: #E74C3C; }
+.btn-danger:hover { background: #C0392B; }
+ select, input {
+    padding: 6px 10px;
+    border: 1px solid #E0E6ED;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+  }
+.multi-select {
+    min-width: 200px;
+  }
+.progress-bar {
+    width: 200px;
+    height: 6px;
+    background: #E0E6ED;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4A90E2, #1ABC9C);
+    transition: width 0.4s ease;
+  }
+.info-panel {
+    position: fixed;
+    right: 20px;
+    top: 140px;
+    width: 300px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 16px;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 100;
+  }
+.info-panel.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+.info-panel h3 {
+    margin: 0 0 8px 0;
+    color: #2C3E50;
+    font-size: 16px;
+  }
+.info-panel p {
+    margin: 4px 0;
+    color: #5D6D7E;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+.tag {
+    display: inline-block;
+    background: #E8F8F5;
+    color: #1ABC9C;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 8px;
+    margin-right: 6px;
+  }
+.tag-error { background: #FDEDEC; color: #E74C3C; }
+.tag-wait { background: #FEF9E7; color: #F39C12; }
+.tag-role { background: #EBF5FB; color: #3498DB; }
+.log-panel {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    width: 320px;
+    max-height: 200px;
+    background: #2C3E50;
+    color: #ECF0F1;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    overflow-y: auto;
+    font-family: monospace;
+  }
+.log-panel.log-item { margin: 4px 0; }
+.log-error { color: #E74C3C; }
+.log-success { color: #2ECC71; }
+.log-warn { color: #F39C12; }
+.log-info { color: #3498DB; }
+.company-badge {
+    display: inline-block;
+    background: #34495E;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-left: 8px;
+ }
+</style>
+</head>
+<body>
+
+<div class="control-panel">
+  <label>角色：</label>
+  <select id="roleSelect">
+    <option value="staff">記帳人員</option>
+    <option value="accountant">主辦會計</option>
+    <option value="cpa">會計師</option>
+  </select>
+
+  <label>公司：</label>
+  <select id="companySelect" multiple class="multi-select">
+    <option value="A001" selected>台灣積體電路製造</option>
+    <option value="A002">聯發科技</option>
+    <option value="A003">台達電子</option>
+  </select>
+
+  <button class="btn" id="playBtn">批次執行</button>
+  <button class="btn" id="resetBtn">重置</button>
+  <button class="btn btn-success" id="signBtn" disabled>會計師簽核</button>
+  <button class="btn btn-success" id="xbrlBtn" disabled>匯出 XBRL</button>
+
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <span id="stepText" style="font-size:14px;color:#7F8C8D;">待機中</span>
+  <span id="currentCompany" class="company-badge" style="display:none;"></span>
+</div>
+
+<div class="info-panel" id="infoPanel">
+  <h3 id="infoTitle">點擊節點查看詳情</h3>
+  <p id="infoContent">此處會顯示各步驟的 IFRS 合規重點與系統邏輯。</p>
+  <div id="infoTags"></div>
+</div>
+
+<div class="log-panel" id="logPanel">
+  <div class="log-item">系統日誌：等待載入流程設定...</div>
+</div>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1100" width="1000" height="1100">
+  <defs>
+    <pattern id="dotPattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#e0e6ed" />
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A90E2" />
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.08" />
+    </filter>
+    <filter id="active-glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="error-glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feFlood flood-color="#E74C3C" result="flood"/>
+      <feComposite in="flood" in2="coloredBlur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="gradBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F0F7FF" />
+    </linearGradient>
+    <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E8F8F5" />
+    </linearGradient>
+    <linearGradient id="gradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#FEF9E7" />
+    </linearGradient>
+  </defs>
+
+  <style>
+.node {
+      cursor: pointer;
+      transition: all 0.3s ease;
+      opacity: 0.4;
+    }
+.node.active {
+      opacity: 1;
+      filter: url(#active-glow);
+    }
+.node.error {
+      opacity: 1;
+      filter: url(#error-glow);
+    }
+.node.waiting {
+      opacity: 1;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+.node:hover {
+      transform: scale(1.02);
+    }
+.flow-line {
+      stroke-dasharray: 8,4;
+      opacity: 0.3;
+    }
+.flow-line.active {
+      opacity: 1;
+      animation: flow 1.5s linear infinite;
+    }
+.flow-line.error {
+      stroke: #E74C3C;
+      opacity: 1;
+    }
+    @keyframes flow {
+      to { stroke-dashoffset: -24; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+  </style>
+
+  <rect width="1000" height="1100" fill="url(#dotPattern)" />
+
+  <g transform="translate(500, 60)">
+    <text x="0" y="0" font-size="28" font-weight="bold" fill="#2C3E50" text-anchor="middle">IFRS 會計自動化 Dynamic 系統 v3.3</text>
+    <text x="0" y="30" font-size="16" fill="#7F8C8D" text-anchor="middle">企業級：批次執行 / 權限控管 / API 串接 / 簽核流程</text>
+  </g>
+
+  <line x1="400" y1="140" x2="400" y2="1000" stroke="#4A90E2" stroke-width="4" class="flow-line" id="mainLine" />
+  <g id="nodes"></g>
+</svg>
+
+<script>
+  let nodeData = [];
+  let currentStep = -1;
+  let isPlaying = false;
+  let isPausedForSign = false;
+  let currentCompanyIndex = 0;
+  let selectedCompanies = [];
+  let currentRole = 'staff';
+  let retryCount = {};
+
+  const API_BASE = '/api/ifrs';
+
+  const nodesGroup = document.getElementById('nodes');
+  const playBtn = document.getElementById('playBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const signBtn = document.getElementById('signBtn');
+  const xbrlBtn = document.getElementById('xbrlBtn');
+  const roleSelect = document.getElementById('roleSelect');
+  const companySelect = document.getElementById('companySelect');
+  const progressFill = document.getElementById('progressFill');
+  const stepText = document.getElementById('stepText');
+  const infoPanel = document.getElementById('infoPanel');
+  const logPanel = document.getElementById('logPanel');
+  const currentCompanyBadge = document.getElementById('currentCompany');
+
+  function addLog(msg, type = '') {
+    const item = document.createElement('div');
+    item.className = `log-item log-${type}`;
+    item.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logPanel.appendChild(item);
+    logPanel.scrollTop = logPanel.scrollHeight;
+  }
+
+  function updatePermission() {
+    currentRole = roleSelect.value;
+    addLog(`切換角色：${roleSelect.options[roleSelect.selectedIndex].text}`, 'info');
+
+    signBtn.style.display = currentRole === 'cpa'? 'inline-block' : 'none';
+    xbrlBtn.style.display = currentRole === 'accountant' || currentRole === 'cpa'? 'inline-block' : 'none';
+    playBtn.style.display = currentRole!== 'cpa'? 'inline-block' : 'none';
+
+    if (currentRole === 'accountant' || currentRole === 'cpa') {
+      xbrlBtn.disabled = false;
+      addLog('XBRL 匯出功能已啟用', 'info');
+    } else {
+      xbrlBtn.disabled = true;
+    }
+
+    if (isPausedForSign && currentRole === 'cpa') {
+      signBtn.disabled = false;
+      addLog('已切換至會計師，簽核按鈕已啟用', 'success');
+    } else {
+      signBtn.disabled = true;
+    }
+  }
+
+  async function fetchFlowConfig() {
+    addLog('正在從後端載入 IFRS 流程設定...', 'info');
+    try {
+      nodeData = [
+        { id: 1, title: "1. 原始憑證輸入", subtitle: "銷售／採購／銀行交易／費用", detail: "系統自動介接 ERP、銀行、發票平台。支援電子發票、紙本 OCR 辨識。", tag: "IFRS 15", canError: true },
+        { id: 2, title: "2. 會計科目自動分類", subtitle: "AI / OCR 辨識並進行科目對應", detail: "透過 NLP + 歷史分錄訓練模型，自動對應到台灣 IFRS 會計科目表。", tag: "金管會 COA", canError: true },
+        { id: 3, title: "3. 自動產生傳票", subtitle: "系統自動判定借貸方", detail: "依交易類型套用分錄模板，自動平衡檢查。", tag: "商業會計法 §35", canError: true },
+        { id: 4, title: "4. 過帳至明細分類帳", subtitle: "更新總帳 / 明細帳餘額", detail: "即時過帳並產出試算表。所有過帳動作皆寫入區塊鏈日誌。", tag: "審計準則", canError: false },
+        { id: 5, title: "5. 自動期末調整", subtitle: "符合 IFRS 之調整分錄", detail: "系統排程執行：折舊 IFRS 16、攤銷 IAS 38、應計 IAS 19。", tag: "IAS 16 / IFRS 16", canError: true },
+        { id: 6, title: "6. 合規檢核與結帳", subtitle: "內建 IFRS 檢查邏輯", detail: "檢查 200+ 項邏輯，需會計師簽核後才能關帳。", tag: "金管證審字第 1090360935號", canError: false, needSign: true },
+        { id: 7, title: "6-1. 會計師簽核", subtitle: "覆核合規檢核結果", detail: "會計師登入確認所有調整分錄與揭露事項。簽核記錄上鏈存證。", tag: "審計準則 315號", isSign: true },
+        { id: 8, title: "7. 產出財務報表", subtitle: "自動生成四大財務報表", detail: "一鍵產出 XBRL 格式申報檔，符合證交所規範。", tag: "IFRS 1", canError: false },
+        { id: 9, title: "8. 審計軌跡留存", subtitle: "數位審計日誌記錄", detail: "從原始憑證到報表，每一步都有 Hash 紀錄。完成後可匯出 XBRL。", tag: "審計準則 315號", canError: false }
+      ];
+      renderNodes();
+      addLog('流程設定載入成功', 'success');
+    } catch (e) {
+      addLog('載入流程設定失敗：' + e.message, 'error');
+    }
+  }
+
+  async function postExecuteLog(companyId, stepId, status) {
+    addLog(`[${companyId}] 步驟 ${stepId} 狀態：${status}`, 'info');
+  }
+
+  function renderNodes() {
+    nodesGroup.innerHTML = '';
+    const positions = [140, 250, 360, 470, 580, 690, 750, 860, 970];
+
+    positions.forEach((y, i) => {
+      const d = nodeData[i];
+      const isGreen = i === 4;
+      const isOrange = d.isSign;
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', `translate(500, ${y})`);
+      g.setAttribute('class', 'node');
+      g.setAttribute('data-index', i);
+      g.innerHTML = `
+        <rect x="-140" y="-35" width="280" height="70" rx="8" fill="url(#${isOrange? 'gradOrange' : isGreen? 'gradGreen' : 'gradBlue'})" filter="url(#shadow)" stroke="${isOrange? '#F39C12' : isGreen? '#1ABC9C' : '#4A90E2'}" stroke-width="2" />
+        <rect x="-140" y="-35" width="8" height="70" rx="4" fill="${isOrange? '#F39C12' : isGreen? '#1ABC9C' : '#4A90E2'}" />
+        <text x="0" y="-5" font-size="${d.isSign? 16 : 18}" font-weight="bold" fill="#2C3E50" text-anchor="middle">${d.title}</text>
+        <text x="0" y="20" font-size="14" fill="#7F8C8D" text-anchor="middle">${d.subtitle}</text>
+        <circle cx="0" cy="35" r="6" fill="${isOrange? '#F39C12' : isGreen? '#1ABC9C' : '#4A90E2'}" />
+      `;
+      g.addEventListener('click', () => showInfo(i));
+      nodesGroup.appendChild(g);
+
+      if (i < positions.length - 1) {
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        // 關鍵修正：箭頭從節點底部 y+35 畫到下個節點頂部 next-35
+        arrow.setAttribute('d', `M 400 ${y + 35} L 400 ${positions[i+1] - 35}`);
+        arrow.setAttribute('stroke', '#4A90E2');
+        arrow.setAttribute('stroke-width', '3');
+        arrow.setAttribute('marker-end', 'url(#arrow)');
+        arrow.setAttribute('fill', 'none');
+        arrow.setAttribute('class', 'flow-line');
+        arrow.setAttribute('data-index', i);
+        nodesGroup.appendChild(arrow);
+      }
+    });
+  }
+
+  function showInfo(index) {
+    const d = nodeData[index];
+    document.getElementById('infoTitle').textContent = d.title;
+    document.getElementById('infoContent').textContent = d.detail;
+    const tagsDiv = document.getElementById('infoTags');
+    tagsDiv.innerHTML = `<span class="tag">${d.tag}</span>`;
+    if (d.canError) tagsDiv.innerHTML += `<span class="tag">支援自動重試</span>`;
+    if (d.needSign) tagsDiv.innerHTML += `<span class="tag tag-wait">需會計師簽核</span>`;
+    tagsDiv.innerHTML += `<span class="tag tag-role">角色：${roleSelect.options[roleSelect.selectedIndex].text}</span>`;
+    infoPanel.classList.add('active');
+  }
+
+  function updateStep(step) {
+    const allNodes = document.querySelectorAll('.node');
+    const allLines = document.querySelectorAll('.flow-line');
+    allNodes.forEach((node, i) => {
+      node.classList.remove('active', 'error', 'waiting');
+      if (i < step) node.classList.add('active');
+      else if (i === step) {
+        if (nodeData[i].isSign && isPausedForSign) node.classList.add('waiting');
+        else node.classList.add('active');
+      }
+    });
+    allLines.forEach((line, i) => {
+      line.classList.remove('active', 'error');
+      if (i < step) line.classList.add('active');
+    });
+    progressFill.style.width = `${(step + 1) / nodeData.length * 100}%`;
+    if (step >= 0 && step < nodeData.length) showInfo(step);
+  }
+
+  async function executeCompany(companyId, companyName) {
+    return new Promise((resolve) => {
+      currentCompanyBadge.textContent = companyName;
+      currentCompanyBadge.style.display = 'inline-block';
+      addLog(`開始執行公司：${companyName} [${companyId}]`, 'info');
+      currentStep = -1;
+      retryCount = {};
+
+      const runStep = async () => {
+        currentStep++;
+        if (currentStep >= nodeData.length) {
+          addLog(`[${companyName}] 全部完成`, 'success');
+          resolve(true);
+          return;
+        }
+
+        const d = nodeData[currentStep];
+        stepText.textContent = `${companyName} - 步驟 ${currentStep + 1} / ${nodeData.length}`;
+        await postExecuteLog(companyId, d.id, 'running');
+
+        if (d.canError && Math.random() < 0.15) {
+          const retry = retryCount[currentStep] || 0;
+          if (retry < 3) {
+            retryCount[currentStep] = retry + 1;
+            addLog(`[${companyName}] ${d.title} 失敗，重試 ${retry + 1}/3`, 'error');
+            document.querySelectorAll('.node')[currentStep].classList.add('error');
+            setTimeout(() => {
+              document.querySelectorAll('.node')[currentStep].classList.remove('error');
+              runStep();
+            }, 1000);
+            return;
+          } else {
+            addLog(`[${companyName}] ${d.title} 重試失敗，中止`, 'error');
+            await postExecuteLog(companyId, d.id, 'failed');
+            resolve(false);
+            return;
+          }
+        }
+
+        if (d.needSign &&!d.isSign) {
+          isPausedForSign = true;
+          signBtn.disabled = currentRole!== 'cpa';
+          updateStep(currentStep);
+          addLog(`[${companyName}] 等待會計師簽核...`, 'warn');
+          stepText.textContent = `${companyName} - 等待簽核中`;
+          await postExecuteLog(companyId, d.id, 'waiting_sign');
+          if (currentRole === 'cpa') {
+            addLog('你是會計師，請點擊「會計師簽核」按鈕繼續', 'success');
+          } else {
+            addLog('需切換至會計師角色才能簽核', 'warn');
+          }
+          return;
+        }
+
+        updateStep(currentStep);
+        await postExecuteLog(companyId, d.id, 'success');
+        setTimeout(runStep, 1200);
+      };
+      runStep();
+    });
+  }
+
+  async function playBatchSequence() {
+    if (isPlaying) return;
+    selectedCompanies = Array.from(companySelect.selectedOptions).map(o => ({ id: o.value, name: o.text }));
+    if (selectedCompanies.length === 0) {
+      alert('請至少選擇一家公司');
+      return;
+    }
+
+    isPlaying = true;
+    playBtn.disabled = true;
+    addLog(`開始批次執行，共 ${selectedCompanies.length} 家公司`, 'success');
+
+    for (let i = 0; i < selectedCompanies.length; i++) {
+      currentCompanyIndex = i;
+      const success = await executeCompany(selectedCompanies[i].id, selectedCompanies[i].name);
+      if (!success) {
+        addLog('批次執行中斷', 'error');
+        break;
+      }
+    }
+
+    isPlaying = false;
+    playBtn.disabled = currentRole === 'cpa';
+    currentCompanyBadge.style.display = 'none';
+    stepText.textContent = '批次完成';
+    addLog('所有公司批次執行完成', 'success');
+  }
+
+  async function handleSign() {
+    if (!isPausedForSign) return;
+    if (currentRole!== 'cpa') {
+      addLog('權限不足：只有會計師能執行簽核', 'error');
+      return;
+    }
+
+    const company = selectedCompanies[currentCompanyIndex];
+    isPausedForSign = false;
+    signBtn.disabled = true;
+    addLog(`[${company.name}] 會計師簽核完成`, 'success');
+    await postExecuteLog(company.id, nodeData[currentStep].id, 'signed');
+    currentStep++;
+    updateStep(currentStep);
+
+    const runRemain = async () => {
+      const runStep = async () => {
+        currentStep++;
+        if (currentStep >= nodeData.length) {
+          addLog(`[${company.name}] 全部完成`, 'success');
+          return;
+        }
+        const d = nodeData[currentStep];
+        stepText.textContent = `${company.name} - 步驟 ${currentStep + 1} / ${nodeData.length}`;
+        await postExecuteLog(company.id, d.id, 'running');
+        updateStep(currentStep);
+        await postExecuteLog(company.id, d.id, 'success');
+        setTimeout(runStep, 1200);
+      };
+      runStep();
+    };
+    runRemain();
+  }
+
+  function exportXBRL() {
+    if (currentRole!== 'accountant' && currentRole!== 'cpa') {
+      addLog('權限不足：只有主辦會計以上能匯出 XBRL', 'error');
+      return;
+    }
+    const companyIds = selectedCompanies.map(c => c.id).join(',');
+    addLog(`產生 XBRL：公司 ${companyIds}`, 'warn');
+    setTimeout(() => {
+      const blob = new Blob([`<?xml version="1.0"?><xbrl><companies>${companyIds}</companies><role>${currentRole}</role></xbrl>`], {type: 'application/xml'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `IFRS_XBRL_${companyIds}_${new Date().toISOString().slice(0,10)}.xml`;
+      a.click();
+      addLog('XBRL 檔案已下載', 'success');
+    }, 1000);
+  }
+
+  function reset() {
+    isPlaying = false;
+    isPausedForSign = false;
+    currentStep = -1;
+    retryCount = {};
+    playBtn.disabled = currentRole === 'cpa';
+    signBtn.disabled = true;
+    xbrlBtn.disabled =!(currentRole === 'accountant' || currentRole === 'cpa');
+    updateStep(-1);
+    infoPanel.classList.remove('active');
+    stepText.textContent = '待機中';
+    currentCompanyBadge.style.display = 'none';
+    logPanel.innerHTML = '<div class="log-item">系統日誌：已重置</div>';
+  }
+
+  playBtn.addEventListener('click', playBatchSequence);
+  resetBtn.addEventListener('click', reset);
+  signBtn.addEventListener('click', handleSign);
+  xbrlBtn.addEventListener('click', exportXBRL);
+  roleSelect.addEventListener('change', updatePermission);
+
+  updatePermission();
+  fetchFlowConfig();
+</script>
+</body>
+</html>
