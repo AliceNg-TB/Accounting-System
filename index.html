@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  
-    <rect width="1200" height="1600" fill="url(#bgGrad)"/>
- 
-     
 <meta charset="UTF-8">
 <title>IFRS 會計自動化 Dynamic 系統 v3.3</title>
 <style>
@@ -16,7 +12,7 @@
     flex-direction: column;
     align-items: center;
   }
-.control-panel {
+ .control-panel {
     margin: 20px 0 10px 0;
     display: flex;
     gap: 12px;
@@ -25,7 +21,7 @@
     justify-content: center;
     max-width: 1200px;
   }
-.btn {
+ .btn {
     padding: 8px 16px;
     border: none;
     border-radius: 6px;
@@ -35,36 +31,36 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-.btn:hover { background: #357ABD; }
-.btn:disabled { background: #BDC3C7; cursor: not-allowed; }
-.btn-success { background: #1ABC9C; }
-.btn-success:hover { background: #16A085; }
-.btn-danger { background: #E74C3C; }
-.btn-danger:hover { background: #C0392B; }
- select, input {
+ .btn:hover { background: #357ABD; }
+ .btn:disabled { background: #BDC3C7; cursor: not-allowed; }
+ .btn-success { background: #1ABC9C; }
+ .btn-success:hover { background: #16A085; }
+ .btn-danger { background: #E74C3C; }
+ .btn-danger:hover { background: #C0392B; }
+  select, input {
     padding: 6px 10px;
     border: 1px solid #E0E6ED;
     border-radius: 6px;
     font-size: 14px;
     background: #fff;
   }
-.multi-select {
+ .multi-select {
     min-width: 200px;
   }
-.progress-bar {
+ .progress-bar {
     width: 200px;
     height: 6px;
     background: #E0E6ED;
     border-radius: 3px;
     overflow: hidden;
   }
-.progress-fill {
+ .progress-fill {
     height: 100%;
     width: 0%;
     background: linear-gradient(90deg, #4A90E2, #1ABC9C);
     transition: width 0.4s ease;
   }
-.info-panel {
+ .info-panel {
     position: fixed;
     right: 20px;
     top: 140px;
@@ -79,23 +75,23 @@
     pointer-events: none;
     z-index: 100;
   }
-.info-panel.active {
+ .info-panel.active {
     opacity: 1;
     transform: translateX(0);
     pointer-events: auto;
   }
-.info-panel h3 {
+ .info-panel h3 {
     margin: 0 0 8px 0;
     color: #2C3E50;
     font-size: 16px;
   }
-.info-panel p {
+ .info-panel p {
     margin: 4px 0;
     color: #5D6D7E;
     font-size: 13px;
     line-height: 1.6;
   }
-.tag {
+ .tag {
     display: inline-block;
     background: #E8F8F5;
     color: #1ABC9C;
@@ -105,10 +101,10 @@
     margin-top: 8px;
     margin-right: 6px;
   }
-.tag-error { background: #FDEDEC; color: #E74C3C; }
-.tag-wait { background: #FEF9E7; color: #F39C12; }
-.tag-role { background: #EBF5FB; color: #3498DB; }
-.log-panel {
+ .tag-error { background: #FDEDEC; color: #E74C3C; }
+ .tag-wait { background: #FEF9E7; color: #F39C12; }
+ .tag-role { background: #EBF5FB; color: #3498DB; }
+ .log-panel {
     position: fixed;
     left: 20px;
     bottom: 20px;
@@ -122,12 +118,12 @@
     overflow-y: auto;
     font-family: monospace;
   }
-.log-panel.log-item { margin: 4px 0; }
-.log-error { color: #E74C3C; }
-.log-success { color: #2ECC71; }
-.log-warn { color: #F39C12; }
-.log-info { color: #3498DB; }
-.company-badge {
+ .log-panel.log-item { margin: 4px 0; }
+ .log-error { color: #E74C3C; }
+ .log-success { color: #2ECC71; }
+ .log-warn { color: #F39C12; }
+ .log-info { color: #3498DB; }
+ .company-badge {
     display: inline-block;
     background: #34495E;
     color: #fff;
@@ -135,10 +131,38 @@
     border-radius: 12px;
     font-size: 12px;
     margin-left: 8px;
- }
+  }
+ .tb-logo {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    z-index: 999;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+  }
+ .tb-logo text {
+    font-family: 'Georgia', serif;
+    font-weight: 800;
+    font-size: 24px;
+    fill: url(#tbGrad);
+    letter-spacing: -1px;
+  }
 </style>
 </head>
 <body>
+
+<!-- TB Art Logo -->
+<svg class="tb-logo" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="tbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A90E2" />
+      <stop offset="100%" stop-color="#1ABC9C" />
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="23" fill="#fff" stroke="url(#tbGrad)" stroke-width="2"/>
+  <text x="24" y="32" text-anchor="middle">TB</text>
+</svg>
 
 <div class="control-panel">
   <label>角色：</label>
@@ -217,35 +241,35 @@
   </defs>
 
   <style>
-.node {
+   .node {
       cursor: pointer;
       transition: all 0.3s ease;
       opacity: 0.4;
     }
-.node.active {
+   .node.active {
       opacity: 1;
       filter: url(#active-glow);
     }
-.node.error {
+   .node.error {
       opacity: 1;
       filter: url(#error-glow);
     }
-.node.waiting {
+   .node.waiting {
       opacity: 1;
       animation: pulse 1.5s ease-in-out infinite;
     }
-.node:hover {
+   .node:hover {
       transform: scale(1.02);
     }
-.flow-line {
+   .flow-line {
       stroke-dasharray: 8,4;
       opacity: 0.3;
     }
-.flow-line.active {
+   .flow-line.active {
       opacity: 1;
       animation: flow 1.5s linear infinite;
     }
-.flow-line.error {
+   .flow-line.error {
       stroke: #E74C3C;
       opacity: 1;
     }
@@ -374,7 +398,6 @@
 
       if (i < positions.length - 1) {
         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        // 關鍵修正：箭頭從節點底部 y+35 畫到下個節點頂部 next-35
         arrow.setAttribute('d', `M 400 ${y + 35} L 400 ${positions[i+1] - 35}`);
         arrow.setAttribute('stroke', '#4A90E2');
         arrow.setAttribute('stroke-width', '3');
